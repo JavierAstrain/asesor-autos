@@ -1,46 +1,35 @@
 import streamlit as st
-import pandas as pd
-import google.generativeai as genai  # Importar la biblioteca de Google
+import google.generativeai as genai  # Para usar Gemini
+# O: import openai as OpenAI          # Para usar OpenAI
 
-# --- Estructura del resto de la app (se mantiene igual) ---
-st.set_page_config(page_title="Asesor de Compra de Autos", layout="wide")
+# 1. Configuración de la página
+st.set_page_config(page_title="Asesor de Compra de Autos con IA", layout="wide")
+
 st.title("🚗 Asesor de Compra de Autos con IA (Gemini)")
-st.write("¡Hola! Estoy aquí para ayudarte a encontrar el auto perfecto para ti.")
+st.write("¡Hola! Estoy aquí para ayudarte a encontrar el auto perfecto para ti. Puedes preguntarme sobre modelos, hacer comparativas o pedir recomendaciones. No necesito una base de datos, ¡la IA lo sabe todo!")
 
+# 2. Conectar con la API de Gemini
 try:
-    df_autos = pd.read_csv('autos.csv')
-except FileNotFoundError:
-    st.error("Error: Archivo 'autos.csv' no encontrado.")
-    st.stop()
-
-# --- CAMBIO CLAVE: Conectar con la API de Gemini ---
-try:
-    # La clave de la API de Gemini se obtiene de los secretos de Streamlit
     genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+    model = genai.GenerativeModel('gemini-pro')
 except KeyError:
     st.error("Error: La clave de la API de Google (Gemini) no está configurada en los secretos de Streamlit.")
     st.stop()
 
-# Inicializa el modelo de Gemini
-model = genai.GenerativeModel('gemini-pro')
-
-# --- CAMBIO CLAVE: Función para hacer la consulta a Gemini ---
+# 3. Función para hacer la consulta a la IA (simplificada)
 def consultar_ia(prompt_del_usuario):
     """
-    Función que envía la consulta del usuario a Gemini y devuelve la respuesta.
+    Función que envía la consulta del usuario a la IA y devuelve la respuesta.
     """
-    # Se inyecta el contexto de los datos en el prompt.
-    datos_para_ia = df_autos.to_string()
-    
-    # Este es el prompt que se envía a la IA.
-    system_prompt = f"""
+    # El prompt ahora no incluye datos de un CSV. Solo instrucciones.
+    system_prompt = """
     Eres un experto en automoción. Tu objetivo es asesorar a un cliente en la compra de un auto.
-    Debes ser útil, objetivo y proporcionar información clara. Puedes hacer comparaciones,
-    dar recomendaciones y crear listas o tablas. Usa los siguientes datos como referencia:
-    {datos_para_ia}
+    Debes ser útil, objetivo y proporcionar información clara. Puedes hacer comparaciones entre
+    diferentes modelos, dar recomendaciones basadas en necesidades específicas del cliente (como tamaño,
+    consumo de combustible, precio, etc.) y crear listas o tablas comparativas. 
+    Tu información debe ser precisa y actualizada hasta donde alcance tu conocimiento.
     """
     
-    # La forma de enviar el prompt a Gemini es un poco diferente
     full_prompt = f"{system_prompt}\n\nPregunta del usuario: {prompt_del_usuario}"
     
     try:
@@ -50,20 +39,22 @@ def consultar_ia(prompt_del_usuario):
         st.error(f"Ocurrió un error al contactar con la IA: {e}")
         return "Lo siento, no pude procesar tu solicitud en este momento."
 
-# --- El resto de la UI (Interfaz de Usuario) se mantiene igual ---
-with st.sidebar:
-    st.header("Opciones y filtros")
-    marcas = df_autos['Marca'].unique()
-    marca_seleccionada = st.selectbox("Filtrar por marca", ["Todas"] + list(marcas))
+# 4. Interfaz de usuario (UI)
+# En este enfoque, no necesitas un sidebar para filtrar datos, ya que no tienes una base de datos local.
+# Puedes eliminar la parte del sidebar si ya no la necesitas.
+# with st.sidebar:
+#     st.header("Opciones")
+#     st.write("No hay filtros disponibles, la IA tiene el conocimiento.")
 
-    if marca_seleccionada != "Todas":
-        st.write(df_autos[df_autos['Marca'] == marca_seleccionada])
-
-pregunta = st.text_area("¿En qué puedo ayudarte hoy?", height=100, placeholder="Ejemplo: 'Compara el Toyota Corolla y el Honda Civic'")
+pregunta = st.text_area(
+    "¿En qué puedo ayudarte hoy?", 
+    height=100, 
+    placeholder="Ejemplo: 'Compara el Toyota Corolla 2024 y el Honda Civic 2024. Haz una tabla con sus pros y contras.'"
+)
 
 if st.button("Obtener Asesoría"):
     if pregunta:
-        with st.spinner("Pensando..."):
+        with st.spinner("Buscando la mejor información para ti..."):
             respuesta_ia = consultar_ia(pregunta)
             st.markdown("---")
             st.subheader("Tu Asesoría:")
